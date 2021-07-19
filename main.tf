@@ -248,15 +248,15 @@ resource "null_resource" "get-cred" {
 
 
 ###  To deploy ACM  
-# module "acm-anthos" {
-#   source           = "./modules/acm"
-#   project_id       = data.google_client_config.anthos.project
-#   cluster_name     = var.clusname
-#   location         = module.anthos-gke.location
-#   cluster_endpoint = module.anthos-gke.endpoint
-#   #service_account_key_file = "${path.module}/asm-credentials.json"
-#   operator_path    = "config-management-operator.yaml"
-#   sync_repo        = var.acm_repo_location
-#   sync_branch      = var.acm_branch
-#   policy_dir       = var.acm_dir
-# }
+module "acm-anthos" {
+  source           = "./modules/acm"
+  project_id       = data.google_client_config.anthos.project
+  cluster_name     = var.clusname
+  location         = module.anthos-gke.location
+  cluster_endpoint = module.anthos-gke.endpoint
+  #service_account_key_file = "${path.module}/asm-credentials.json"
+  operator_path    = "config-management-operator.yaml"
+  sync_repo        = var.acm_repo_location
+  sync_branch      = var.acm_branch
+  policy_dir       = var.acm_dir
+}
