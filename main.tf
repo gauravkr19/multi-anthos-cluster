@@ -239,6 +239,14 @@ resource "google_gke_hub_membership" "membership" {
   provider = google-beta
 }
 
+resource "null_resource" "get-cred" {
+  depends_on = [module.asm-anthos]
+  provisioner "local-exec" {   
+    command = "gcloud container clusters get-credentials ${module.anthos-gke.name} --zone=${var.region}"
+  }
+}
+
+
 ###  To deploy ACM  
 module "acm-anthos" {
   source           = "./modules/acm"
