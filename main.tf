@@ -195,28 +195,28 @@ resource "null_resource" "get-credentials" {
 }
 
 ###  To deploy ASM 
-# module "asm-anthos" {
-#   source           = "terraform-google-modules/kubernetes-engine/google//modules/asm"
-#   version          = "15.0.0"
-#   asm_version      = var.asm_version
-#   project_id       = data.google_client_config.anthos.project
-#   cluster_name     = var.clusname
-#   location         = module.anthos-gke.location
-#   cluster_endpoint = module.anthos-gke.endpoint
-#   enable_all            = false
-#   enable_cluster_roles  = true
-#   enable_cluster_labels = false
-#   enable_gcp_apis       = false
-#   enable_gcp_iam_roles  = false
-#   enable_gcp_components = true
-#   enable_registration   = false
-#   managed_control_plane = false
-#   service_account       = google_service_account.asm.email
-#   key_file              = "${path.module}/asm-credentials.json"
-#   options               = ["envoy-access-log,egressgateways"]
-#   skip_validation       = true
-#   outdir                = "./${module.anthos-gke.name}-outdir-${var.asm_version}"
-# }
+module "asm-anthos" {
+  source           = "terraform-google-modules/kubernetes-engine/google//modules/asm"
+  version          = "15.0.0"
+  asm_version      = var.asm_version
+  project_id       = data.google_client_config.anthos.project
+  cluster_name     = var.clusname
+  location         = module.anthos-gke.location
+  cluster_endpoint = module.anthos-gke.endpoint
+  enable_all            = false
+  enable_cluster_roles  = true
+  enable_cluster_labels = false
+  enable_gcp_apis       = false
+  enable_gcp_iam_roles  = false
+  enable_gcp_components = true
+  enable_registration   = false
+  managed_control_plane = false
+  service_account       = google_service_account.asm.email
+  key_file              = "${path.module}/asm-credentials.json"
+  options               = ["envoy-access-log,egressgateways"]
+  skip_validation       = true
+  outdir                = "./${module.anthos-gke.name}-outdir-${var.asm_version}"
+}
 
 resource "time_sleep" "wait_20s" {
   depends_on = [module.anthos-gke]
@@ -248,16 +248,15 @@ resource "null_resource" "get-cred" {
 
 
 ###  To deploy ACM  
-module "acm-anthos" {
-  source           = "./modules/acm"
-  project_id       = data.google_client_config.anthos.project
-  cluster_name     = var.clusname
-  location         = module.anthos-gke.location
-  cluster_endpoint = module.anthos-gke.endpoint
-  #service_account_key_file = "${path.module}/asm-credentials.json"
-  operator_path    = "config-management-operator.yaml"
-  sync_repo        = var.acm_repo_location
-  sync_branch      = var.acm_branch
-  policy_dir       = var.acm_dir
-
-}
+# module "acm-anthos" {
+#   source           = "./modules/acm"
+#   project_id       = data.google_client_config.anthos.project
+#   cluster_name     = var.clusname
+#   location         = module.anthos-gke.location
+#   cluster_endpoint = module.anthos-gke.endpoint
+#   #service_account_key_file = "${path.module}/asm-credentials.json"
+#   operator_path    = "config-management-operator.yaml"
+#   sync_repo        = var.acm_repo_location
+#   sync_branch      = var.acm_branch
+#   policy_dir       = var.acm_dir
+# }
