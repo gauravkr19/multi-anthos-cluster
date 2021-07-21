@@ -50,8 +50,3 @@ output "location" {
   value = module.anthos-gke.location
 }
 
-# output "acm-wait" {
-#   value       = module.asm-anthos.asm_wait
-#   sensitive   = true
-#   description = "description"
-# }

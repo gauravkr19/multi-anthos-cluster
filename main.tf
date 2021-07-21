@@ -197,7 +197,7 @@ resource "null_resource" "get-credentials" {
 ###  To deploy ASM 
 module "asm-anthos" {
   source           = "terraform-google-modules/kubernetes-engine/google//modules/asm"
-  version          = "15.0.0"
+  version          = "15.0.2"
   asm_version      = var.asm_version
   project_id       = data.google_client_config.anthos.project
   cluster_name     = var.clusname
@@ -239,24 +239,42 @@ resource "google_gke_hub_membership" "membership" {
   provider = google-beta
 }
 
-resource "null_resource" "get-cred" {
-  #depends_on = [module.asm-anthos]
-  provisioner "local-exec" {   
-    command = "gcloud container clusters get-credentials ${module.anthos-gke.name} --zone=${var.region}"
+resource "google_gke_hub_feature" "feature" {
+  name = "configmanagement"
+  location = "global"
+
+  labels = {
+    foo = "bar"
   }
+  provider = google-beta
+}
+
+resource "google_gke_hub_feature_membership" "feature_member" {
+  location = "global"
+  feature = google_gke_hub_feature.feature.name
+  membership = google_gke_hub_membership.membership.membership_id
+  configmanagement {
+    version = "1.6.2"
+    config_sync {
+      git {
+        sync_repo = "https://github.com/hashicorp/terraform"
+      }
+    }
+  }
+  provider = google-beta
 }
 
 
 ###  To deploy ACM  
-module "acm-anthos" {
-  source           = "./modules/acm"
-  project_id       = data.google_client_config.anthos.project
-  cluster_name     = var.clusname
-  location         = module.anthos-gke.location
-  cluster_endpoint = module.anthos-gke.endpoint
-  #service_account_key_file = "${path.module}/asm-credentials.json"
-  operator_path    = "config-management-operator.yaml"
-  sync_repo        = var.acm_repo_location
-  sync_branch      = var.acm_branch
-  policy_dir       = var.acm_dir
-}
+# module "acm-anthos" {
+#   source           = "./modules/acm"
+#   project_id       = data.google_client_config.anthos.project
+#   cluster_name     = var.clusname
+#   location         = module.anthos-gke.location
+#   cluster_endpoint = module.anthos-gke.endpoint
+#   #service_account_key_file = "${path.module}/asm-credentials.json"
+#   operator_path    = "config-management-operator.yaml"
+#   sync_repo        = var.acm_repo_location
+#   sync_branch      = var.acm_branch
+#   policy_dir       = var.acm_dir
+# }
