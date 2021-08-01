@@ -45,15 +45,25 @@ variable "network" {
 #   default     = "anthos-subnet"
 # }
 
-# variable "ip_range_pods" {
-#   description = "The secondary range name for the pods"
-#   default     = "pod-cidr-name"
-# }
+variable "ip_range_pods" {
+  description = "The secondary range name for the pods"
+  default     = "pod-cidr-name"
+}
 
-# variable "ip_range_services" {
-#   description = "The secondary range name for the services"
-#   default     = "service-cidr-name"
-# }
+variable "ip_range_services" {
+  description = "The secondary range name for the services"
+  default     = "service-cidr-name"
+}
+
+variable "ip_range_pods" {
+  description = "The secondary range name for the pods"
+  default     = "pod-cidr-name-db"
+}
+
+variable "ip_range_services" {
+  description = "The secondary range name for the services"
+  default     = "service-cidr-name-db"
+}
 
 variable clusname {
   default     = "anthos-gke"
