@@ -1,18 +1,3 @@
-variable "module_depends_on" {
-  default = [
-    "google_project_iam_member.gke", 
-    "google_project_iam_member.cluster-dev", 
-    "google_project_iam_member.jenkins-project", 
-    "module.workload_identity.google_service_account_iam_member.main",
-    "google_service_account.hubsa",
-    "google_project_iam_member.hubaccess",
-    "google_service_account_key.hubsa_credentials",
-    "module.jenkins-gke"
-    ]
-  description = "Modules that are required to run before this module does"
-  type        = list
-}
-
 variable "project_id" {
   description = "The project id to deploy Jenkins on GKE"
 }
@@ -55,35 +40,20 @@ variable "network" {
   default     = "anthos-vpc"
 }
 
-variable "subnetwork" {
-  description = "The name of the subnet to run the cluster"
-  default     = "anthos-subnet"
-}
+# variable "subnetwork" {
+#   description = "The name of the subnet to run the cluster"
+#   default     = "anthos-subnet"
+# }
 
-variable "ip_range_pods" {
-  description = "The secondary range name for the pods"
-  default     = "pod-cidr-name"
-}
+# variable "ip_range_pods" {
+#   description = "The secondary range name for the pods"
+#   default     = "pod-cidr-name"
+# }
 
-variable "ip_range_services" {
-  description = "The secondary range name for the services"
-  default     = "service-cidr-name"
-}
-
-variable "ip_cidr_subnet_pods" {
-  description = "The secondary ip range to use for pods"
-  default     = "172.16.0.0/16"
-}
-
-variable "ip_cidr_subnet_services" {
-  description = "The secondary ip range to use for pods"
-  default     = "192.168.2.0/24"
-}
-
-variable "subnet_cidr" {
-  default     = "10.2.0.0/16"
-  description = "subnet cidr range"
-}
+# variable "ip_range_services" {
+#   description = "The secondary range name for the services"
+#   default     = "service-cidr-name"
+# }
 
 variable clusname {
   default     = "anthos-gke"
@@ -106,7 +76,7 @@ variable "acm_dir" {
 
 variable "asm_version" {
   type        = string
-  default     = "1.8"
+  default     = "1.10"
   description = "description"
 }
 
@@ -122,4 +92,38 @@ variable "gke_hub_sa_name" {
   description = "sa for hub reg"
 }
 
+variable "ip_cidr_subnet_pods" {
+  description = "The secondary ip range to use for pods"
+  default     = "172.8.0.0/14"
+}
 
+variable "ip_cidr_subnet_services" {
+  description = "The secondary ip range to use for pods"
+  default     = "10.12.0.0/20"
+}
+
+variable "subnet_cidr" {
+  default     = "10.8.0.0/14"
+  description = "subnet cidr range"
+}
+
+variable "ip_cidr_subnet_pods_db" {
+  type        = string
+  default     = "172.16.0.0/14"
+}
+
+variable "ip_cidr_subnet_services_db" {
+  type        = string
+  default     = "10.12.16.0/20"
+}
+
+variable "subnet_cidr_db" {
+  default     = "10.16.0.0/14"
+  description = "subnet cidr range"
+}
+
+variable "clusnamedb" {
+  type        = string
+  default     = "anthos-gke-db"
+  description = "description"
+}
