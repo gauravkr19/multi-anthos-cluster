@@ -161,8 +161,8 @@ module "anthos-gke-db" {
   zones                    = var.zones
   network                  = google_compute_network.vpc.name
   subnetwork               = google_compute_subnetwork.subnet-db.name
-  ip_range_pods            = var.pod-cidr-name-db
-  ip_range_services        = var.service-cidr-name-db
+  ip_range_pods            = var.ip_range_pods_db
+  ip_range_services        = var.ip_range_services_db
   logging_service          = "logging.googleapis.com/kubernetes"
   monitoring_service       = "monitoring.googleapis.com/kubernetes"
   remove_default_node_pool = true

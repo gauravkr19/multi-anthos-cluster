@@ -55,12 +55,12 @@ variable "ip_range_services" {
   default     = "service-cidr-name"
 }
 
-variable "ip_range_pods" {
+variable "ip_range_pods_db" {
   description = "The secondary range name for the pods"
   default     = "pod-cidr-name-db"
 }
 
-variable "ip_range_services" {
+variable "ip_range_services_db" {
   description = "The secondary range name for the services"
   default     = "service-cidr-name-db"
 }
