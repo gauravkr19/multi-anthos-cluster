@@ -33,7 +33,7 @@ resource "google_compute_network" "vpc" {
   depends_on              = [
     module.project-services.project_id,
     google_service_account_key.asm_credentials,
-    local_file.cred_asm1,
+    local_file.cred_asm_db,
     local_file.cred_asm
     ]  
 }
@@ -205,7 +205,7 @@ module "kubectl-ns" {
   module_depends_on       = [module.anthos-gke]
 }
 
-module "kubectl-ns" {
+module "kubectl-ns-db" {
   source = "terraform-google-modules/gcloud/google//modules/kubectl-wrapper"
 
   project_id              = var.project_id
@@ -246,7 +246,7 @@ resource "local_file" "cred_asm" {
   content  = "${base64decode(google_service_account_key.asm_credentials.private_key)}"
   filename = "${path.module}/asm-credentials.json"
 }
-resource "local_file" "cred_asm1" {
+resource "local_file" "cred_asm_db" {
   content  = "${base64decode(google_service_account_key.asm_credentials.private_key)}"
   filename = "${path.module}/asm-cred.json"
 }
