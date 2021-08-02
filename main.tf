@@ -343,27 +343,27 @@ resource "google_gke_hub_membership" "membership-db" {
 }
 
 
-resource null_resource "fw-rule" {
+resource "null_resource" "fw-rule" {
   depends_on = [
     module.anthos-gke-db,
     module.anthos-gke
   ]
   provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
+   # interpreter = ["/bin/bash", "-c"]
     command = <<EOF
-      function join_by { local IFS="$1"; shift; echo "$*"; }
-      ALL_CLUSTER_CIDRS=$(gcloud container clusters list --format='value(clusterIpv4Cidr)' | sort | uniq)
-      ALL_CLUSTER_CIDRS=$(join_by , $(echo "${ALL_CLUSTER_CIDRS}"))
-      ALL_CLUSTER_NETTAGS=$(gcloud compute instances list --format='value(tags.items.[0])' | sort | uniq)
-      ALL_CLUSTER_NETTAGS=$(join_by , $(echo "${ALL_CLUSTER_NETTAGS}"))
+      function join_by { local IFS="$1"; shift; echo "$*"; }    
+      ALL_CLUSTER_CIDRS = "$(gcloud container clusters list --format='value(clusterIpv4Cidr)' | sort | uniq)"
+      ALL_CLUSTER_NETTAGS = "$(gcloud compute instances list --format='value(tags.items.[0])' | sort | uniq)"    
+      ALL_CLUSTER_CIDRS=$(join_by , $(echo "\$${ALL_CLUSTER_CIDRS}"))
+      ALL_CLUSTER_NETTAGS=$(join_by , $(echo "\$${ALL_CLUSTER_NETTAGS}"))
 
       gcloud compute firewall-rules create istio-multicluster-test-pods \
         --allow=tcp,udp,icmp,esp,ah,sctp \
         --direction=INGRESS \
         --priority=900 \
-        --source-ranges="${ALL_CLUSTER_CIDRS}" \
-        --target-tags="${ALL_CLUSTER_NETTAGS}" --quiet
-    EOF   
+        --source-ranges="\$${ALL_CLUSTER_CIDRS}" \
+        --target-tags="\$${ALL_CLUSTER_NETTAGS}" --quiet
+    EOF     
   }
 }
 
