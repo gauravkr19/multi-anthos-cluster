@@ -331,7 +331,7 @@ resource "google_gke_hub_membership" "membership-db" {
     time_sleep.wait_20s-db,
     module.anthos-gke-db
     ]
-  membership_id = "anthos-gke"
+  membership_id = "anthos-gke-db"
   project       = var.project_id
   endpoint {
     gke_cluster {
@@ -351,9 +351,9 @@ resource "null_resource" "fw-rule" {
   provisioner "local-exec" {
    # interpreter = ["/bin/bash", "-c"]
     command = <<EOF
-      function join_by { local IFS="$1"; shift; echo "$*"; }    
-      ALL_CLUSTER_CIDRS = "$(gcloud container clusters list --format='value(clusterIpv4Cidr)' | sort | uniq)"
-      ALL_CLUSTER_NETTAGS = "$(gcloud compute instances list --format='value(tags.items.[0])' | sort | uniq)"    
+      function join_by { local IFS="\$$1"; shift; echo "\$$*"; }    
+      ALL_CLUSTER_CIDRS=$(gcloud container clusters list --format='value(clusterIpv4Cidr)' | sort | uniq)
+      ALL_CLUSTER_NETTAGS=$(gcloud compute instances list --format='value(tags.items.[0])' | sort | uniq)
       ALL_CLUSTER_CIDRS=$(join_by , $(echo "\$${ALL_CLUSTER_CIDRS}"))
       ALL_CLUSTER_NETTAGS=$(join_by , $(echo "\$${ALL_CLUSTER_NETTAGS}"))
 
@@ -395,10 +395,20 @@ resource "google_gke_hub_feature_membership" "feature_member" {
   provider = google-beta
 }
 
+resource "google_gke_hub_feature" "feature-db" {
+  name = "configmanagement"
+  location = "global"
+
+  labels = {
+    foo = "bar"
+  }
+  provider = google-beta
+}
+
 resource "google_gke_hub_feature_membership" "feature_member-db" {
   location = "global"
-  feature = google_gke_hub_feature.feature-apps.name
-  membership = google_gke_hub_membership.membership.membership_id
+  feature = google_gke_hub_feature.feature-db.name
+  membership = google_gke_hub_membership.membership-db.membership_id
   configmanagement {
     version = "1.6.2"
     config_sync {
