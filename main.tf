@@ -33,6 +33,7 @@ resource "google_compute_network" "vpc" {
   depends_on              = [
     module.project-services.project_id,
     google_service_account_key.asm_credentials,
+    local_file.cred_asm1,
     local_file.cred_asm
     ]  
 }
@@ -193,6 +194,28 @@ module "anthos-gke-db" {
   ]
 }
 
+module "kubectl-ns" {
+  source = "terraform-google-modules/gcloud/google//modules/kubectl-wrapper"
+
+  project_id              = var.project_id
+  cluster_name            = var.clusname
+  cluster_location        = var.region
+  kubectl_create_command  = "kubectl apply -f ${path.module}/asm-ns.yaml"
+  kubectl_destroy_command = "kubectl delete ns asm-system"
+  module_depends_on       = [module.anthos-gke]
+}
+
+module "kubectl-ns" {
+  source = "terraform-google-modules/gcloud/google//modules/kubectl-wrapper"
+
+  project_id              = var.project_id
+  cluster_name            = var.clusnamedb
+  cluster_location        = var.region
+  kubectl_create_command  = "kubectl apply -f ${path.module}/asm-ns.yaml"
+  kubectl_destroy_command = "kubectl delete ns asm-system"
+  module_depends_on       = [module.anthos-gke-db]
+}
+
 # GH Secrets
 # resource "kubernetes_secret" "gh-secrets" {
 #   metadata {
@@ -222,6 +245,10 @@ resource "google_service_account_key" "asm_credentials" {
 resource "local_file" "cred_asm" {
   content  = "${base64decode(google_service_account_key.asm_credentials.private_key)}"
   filename = "${path.module}/asm-credentials.json"
+}
+resource "local_file" "cred_asm1" {
+  content  = "${base64decode(google_service_account_key.asm_credentials.private_key)}"
+  filename = "${path.module}/asm-cred.json"
 }
 
 
