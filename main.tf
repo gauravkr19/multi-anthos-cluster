@@ -331,7 +331,7 @@ resource "google_gke_hub_membership" "membership-db" {
     time_sleep.wait_20s-db,
     module.anthos-gke-db
     ]
-  membership_id = "anthos-gke-db"
+  membership_id = "anthos-gke"
   project       = var.project_id
   endpoint {
     gke_cluster {
@@ -343,30 +343,72 @@ resource "google_gke_hub_membership" "membership-db" {
 }
 
 
-# resource "google_gke_hub_feature" "feature" {
-#   name = "configmanagement"
-#   location = "global"
+resource null_resource "fw-rule" {
+  depends_on = [
+    module.anthos-gke-db,
+    module.anthos-gke
+  ]
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command = <<EOF
+      function join_by { local IFS="$1"; shift; echo "$*"; }
+      ALL_CLUSTER_CIDRS=$(gcloud container clusters list --format='value(clusterIpv4Cidr)' | sort | uniq)
+      ALL_CLUSTER_CIDRS=$(join_by , $(echo "${ALL_CLUSTER_CIDRS}"))
+      ALL_CLUSTER_NETTAGS=$(gcloud compute instances list --format='value(tags.items.[0])' | sort | uniq)
+      ALL_CLUSTER_NETTAGS=$(join_by , $(echo "${ALL_CLUSTER_NETTAGS}"))
 
-#   labels = {
-#     foo = "bar"
-#   }
-#   provider = google-beta
-# }
+      gcloud compute firewall-rules create istio-multicluster-test-pods \
+        --allow=tcp,udp,icmp,esp,ah,sctp \
+        --direction=INGRESS \
+        --priority=900 \
+        --source-ranges="${ALL_CLUSTER_CIDRS}" \
+        --target-tags="${ALL_CLUSTER_NETTAGS}" --quiet
+    EOF   
+  }
+}
 
-# resource "google_gke_hub_feature_membership" "feature_member" {
-#   location = "global"
-#   feature = google_gke_hub_feature.feature.name
-#   membership = google_gke_hub_membership.membership.membership_id
-#   configmanagement {
-#     version = "1.6.2"
-#     config_sync {
-#       git {
-#         sync_repo = "https://github.com/hashicorp/terraform"
-#       }
-#     }
-#   }
-#   provider = google-beta
-# }
+
+
+
+resource "google_gke_hub_feature" "feature-apps" {
+  name = "configmanagement"
+  location = "global"
+
+  labels = {
+    foo = "bar"
+  }
+  provider = google-beta
+}
+
+resource "google_gke_hub_feature_membership" "feature_member" {
+  location = "global"
+  feature = google_gke_hub_feature.feature-apps.name
+  membership = google_gke_hub_membership.membership.membership_id
+  configmanagement {
+    version = "1.6.2"
+    config_sync {
+      git {
+        sync_repo = "https://github.com/hashicorp/terraform"
+      }
+    }
+  }
+  provider = google-beta
+}
+
+resource "google_gke_hub_feature_membership" "feature_member-db" {
+  location = "global"
+  feature = google_gke_hub_feature.feature-apps.name
+  membership = google_gke_hub_membership.membership.membership_id
+  configmanagement {
+    version = "1.6.2"
+    config_sync {
+      git {
+        sync_repo = "https://github.com/hashicorp/terraform"
+      }
+    }
+  }
+  provider = google-beta
+}
 
 
 ###  To deploy ACM  
