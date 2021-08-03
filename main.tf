@@ -326,6 +326,7 @@ resource "time_sleep" "wait_20s-db" {
   create_duration = "20s"
 }
 
+
 resource "google_gke_hub_membership" "membership-db" {
   depends_on    = [
     time_sleep.wait_20s-db,
@@ -338,99 +339,115 @@ resource "google_gke_hub_membership" "membership-db" {
       resource_link = "//container.googleapis.com/projects/${var.project_id}/locations/${var.region}/clusters/${var.clusnamedb}"
     }
   }
-  description = "Anthos Cluster Hub Registration"
+  description = "Anthos Cluster Hub Registration for DB Cluster"
   provider = google-beta
 }
 
-
-resource "null_resource" "fw-rule" {
-  depends_on = [
-    module.anthos-gke-db,
-    module.anthos-gke
-  ]
-  provisioner "local-exec" {
-   # interpreter = ["/bin/bash", "-c"]
-    command = <<EOF
-      function join_by { local IFS="\$$1"; shift; echo "\$$*"; }    
-      ALL_CLUSTER_CIDRS=$(gcloud container clusters list --format='value(clusterIpv4Cidr)' | sort | uniq)
-      ALL_CLUSTER_NETTAGS=$(gcloud compute instances list --format='value(tags.items.[0])' | sort | uniq)
-      ALL_CLUSTER_CIDRS=$(join_by , $(echo "\$${ALL_CLUSTER_CIDRS}"))
-      ALL_CLUSTER_NETTAGS=$(join_by , $(echo "\$${ALL_CLUSTER_NETTAGS}"))
-
-      gcloud compute firewall-rules create istio-multicluster-test-pods \
-        --allow=tcp,udp,icmp,esp,ah,sctp \
-        --direction=INGRESS \
-        --priority=900 \
-        --source-ranges="\$${ALL_CLUSTER_CIDRS}" \
-        --target-tags="\$${ALL_CLUSTER_NETTAGS}" --quiet
-    EOF     
+resource "google_compute_firewall" "intercluster" {
+  name    = "cluster-firewall"
+  network = google_compute_network.vpc.name
+  allow {
+    protocol = "all"
   }
+  source_ranges = ["${var.subnet_cidr_db}", "${var.subnet_cidr}"]
+  target_tags = ["gke-${var.clusname}", "gke-${var.clusnamedb}"]
+}
+
+module "workload_identity" {
+  source              = "terraform-google-modules/kubernetes-engine/google//modules/workload-identity"
+  version             = "16.0.1"
+  project_id          = data.google_client_config.anthos.project
+  name                = google_service_account.workloadid_sa.account_id
+  namespace           = "default"
+  use_existing_gcp_sa = true
+}
+
+resource "google_service_account" "workloadid_sa" {
+  project      = var.project_id
+  account_id   = "boa-gsa"
+  display_name = " Service Account for Workload Id"
+}
+resource "google_project_iam_member" "gsa-binding1" {
+  project = data.google_client_config.anthos.project
+  role    = "roles/cloudtrace.agent"
+  member  = "serviceAccount:${google_service_account.workloadid_sa.email}"
+}
+resource "google_project_iam_member" "gsa-binding2" {
+  project = data.google_client_config.anthos.project
+  role    = "roles/monitoring.metricWriter"
+  member  = "serviceAccount:${google_service_account.workloadid_sa.email}"
 }
 
 
-
-
-resource "google_gke_hub_feature" "feature-apps" {
-  name = "configmanagement"
-  location = "global"
-
-  labels = {
-    foo = "bar"
-  }
-  provider = google-beta
-}
-
-resource "google_gke_hub_feature_membership" "feature_member" {
-  location = "global"
-  feature = google_gke_hub_feature.feature-apps.name
-  membership = google_gke_hub_membership.membership.membership_id
-  configmanagement {
-    version = "1.6.2"
-    config_sync {
-      git {
-        sync_repo = "https://github.com/hashicorp/terraform"
-      }
-    }
-  }
-  provider = google-beta
-}
-
-resource "google_gke_hub_feature" "feature-db" {
-  name = "configmanagement"
-  location = "global"
-
-  labels = {
-    foo = "bar"
-  }
-  provider = google-beta
-}
-
-resource "google_gke_hub_feature_membership" "feature_member-db" {
-  location = "global"
-  feature = google_gke_hub_feature.feature-db.name
-  membership = google_gke_hub_membership.membership-db.membership_id
-  configmanagement {
-    version = "1.6.2"
-    config_sync {
-      git {
-        sync_repo = "https://github.com/hashicorp/terraform"
-      }
-    }
-  }
-  provider = google-beta
-}
-
-
-###  To deploy ACM  
-# module "acm-anthos" {
-#   source           = "./modules/acm"
-#   project_id       = data.google_client_config.anthos.project
-#   cluster_name     = var.clusname
-#   location         = module.anthos-gke.location
-#   cluster_endpoint = module.anthos-gke.endpoint
-#   #service_account_key_file = "${path.module}/asm-credentials.json"
-#   operator_path    = "config-management-operator.yaml"
-#   sync_repo        = var.acm_repo_location
-#   sync_branch      = var.acm_branch
-#   policy_dir       = var.acm_dir
+# resource "kubernetes_service_account" "preexisting" {
+#   metadata {
+#     name                = "boa-ksa"
+#     namespace           = "prod"
+#     use_existing_k8s_sa = true
+#   }
 # }
+
+# resource "google_gke_hub_feature" "feature-apps" {
+#   name = "configmanagement"
+#   location = "global"
+
+#   labels = {
+#     apps = "configmgmt"
+#   }
+#   provider = google-beta
+# }
+
+# resource "google_gke_hub_feature_membership" "feature_member" {
+#   location = "global"
+#   feature = google_gke_hub_feature.feature-apps.name
+#   membership = google_gke_hub_membership.membership.membership_id
+#   configmanagement {
+#     version = "1.8.1"
+#     config_sync {
+#       git {
+#         sync_repo = "https://github.com/GoogleCloudPlatform/anthos-config-management-samples"
+#       }
+#     }
+#   }
+#   provider = google-beta
+# }
+
+# resource "google_gke_hub_feature" "feature_db" {
+#   name = "configmanagement"
+#   location = "global"
+
+#   labels = {
+#     db = "configmgmt"
+#   }
+#   provider = google-beta
+# }
+
+# resource "google_gke_hub_feature_membership" "feature_member_db" {
+#   location = "global"
+#   feature = google_gke_hub_feature.feature_db.name
+#   membership = google_gke_hub_membership.membership-db.membership_id
+#   configmanagement {
+#     version = "1.8.1"
+#     config_sync {
+#       git {
+#         sync_repo = "https://github.com/GoogleCloudPlatform/anthos-config-management-samples"
+#       }
+#     }
+#   }
+#   provider = google-beta
+# }
+
+# ###########################################
+# # ###  To deploy ACM  
+# # # module "acm-anthos" {
+# # #   source           = "./modules/acm"
+# # #   project_id       = data.google_client_config.anthos.project
+# # #   cluster_name     = var.clusname
+# # #   location         = module.anthos-gke.location
+# # #   cluster_endpoint = module.anthos-gke.endpoint
+# # #   #service_account_key_file = "${path.module}/asm-credentials.json"
+# # #   operator_path    = "config-management-operator.yaml"
+# # #   sync_repo        = var.acm_repo_location
+# # #   sync_branch      = var.acm_branch
+# # #   policy_dir       = var.acm_dir
+# # # }
