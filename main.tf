@@ -378,6 +378,27 @@ resource "google_project_iam_member" "gsa-binding2" {
   member  = "serviceAccount:${google_service_account.workloadid_sa.email}"
 }
 
+resource "null_resource" "cluster-trust" {
+  depends_on = [
+      module.asm-anthos-db,
+      module.asm-anthos
+    ]
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command = <<-EOF
+    gcloud container clusters get-credentials ${var.clusname} --zone=${var.region}
+    istioctl x create-remote-secret --context=$${CTX_2} --name=$${CTX_2} | kubectl apply -f -
+    gcloud container clusters get-credentials ${var.clusnamedb} --zone=${var.region}
+    istioctl x create-remote-secret --context=$${CTX_1} --name=$${CTX_1} | kubectl apply -f -
+EOF
+    environment = {
+      CTX_1               = var.clusname
+      CTX_2               = var.clusnamedb
+      CLUSTER_1_CTX       = "gke_${var.project_id}_${var.region}_${var.clusname}"
+      CLUSTER_2_CTX       = "gke_${var.project_id}_${var.region}_${var.clusnamedb}"
+    }
+  }
+}
 
 # resource "kubernetes_service_account" "preexisting" {
 #   metadata {
