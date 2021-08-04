@@ -251,7 +251,6 @@ resource "local_file" "cred_asm_db" {
   filename = "${path.module}/asm-cred.json"
 }
 
-
 ###  To deploy ASM 
 module "asm-anthos" {
   source           = "terraform-google-modules/kubernetes-engine/google//modules/asm"
@@ -297,7 +296,6 @@ resource "google_gke_hub_membership" "membership" {
   provider = google-beta
 }
 
-
 module "asm-anthos-db" {
   source           = "terraform-google-modules/kubernetes-engine/google//modules/asm"
   version          = "15.0.2"
@@ -315,7 +313,7 @@ module "asm-anthos-db" {
   enable_registration   = false
   managed_control_plane = false
   service_account       = google_service_account.asm.email
-  key_file              = "${path.module}/asm-credentials.json"
+  key_file              = "${path.module}/asm-cred.json"
   options               = ["envoy-access-log,egressgateways"]
   skip_validation       = true
   outdir                = "./${module.anthos-gke-db.name}-outdir-${var.asm_version}"
@@ -325,7 +323,6 @@ resource "time_sleep" "wait_20s-db" {
   depends_on = [module.anthos-gke-db]
   create_duration = "20s"
 }
-
 
 resource "google_gke_hub_membership" "membership-db" {
   depends_on    = [
@@ -390,7 +387,7 @@ resource "null_resource" "cluster-trust" {
     istioctl x create-remote-secret --context=$${CTX_2} --name=$${CTX_2} | kubectl apply -f -
     gcloud container clusters get-credentials ${var.clusnamedb} --zone=${var.region}
     istioctl x create-remote-secret --context=$${CTX_1} --name=$${CTX_1} | kubectl apply -f -
-EOF
+    EOF
     environment = {
       CTX_1               = var.clusname
       CTX_2               = var.clusnamedb
