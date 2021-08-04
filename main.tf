@@ -357,6 +357,7 @@ module "workload_identity" {
   name                = google_service_account.workloadid_sa.account_id
   namespace           = "default"
   use_existing_gcp_sa = true
+  roles               = ["roles/cloudtrace.agent", "roles/monitoring.metricWriter"]
 }
 
 resource "google_service_account" "workloadid_sa" {
@@ -364,21 +365,22 @@ resource "google_service_account" "workloadid_sa" {
   account_id   = "boa-gsa"
   display_name = " Service Account for Workload Id"
 }
-resource "google_project_iam_member" "gsa-binding1" {
-  project = data.google_client_config.anthos.project
-  role    = "roles/cloudtrace.agent"
-  member  = "serviceAccount:${google_service_account.workloadid_sa.email}"
-}
-resource "google_project_iam_member" "gsa-binding2" {
-  project = data.google_client_config.anthos.project
-  role    = "roles/monitoring.metricWriter"
-  member  = "serviceAccount:${google_service_account.workloadid_sa.email}"
-}
+
+# resource "google_project_iam_member" "gsa-binding1" {
+#   project = data.google_client_config.anthos.project
+#   role    = "roles/cloudtrace.agent"
+#   member  = "serviceAccount:${google_service_account.workloadid_sa.email}"
+# }
+# resource "google_project_iam_member" "gsa-binding2" {
+#   project = data.google_client_config.anthos.project
+#   role    = "roles/monitoring.metricWriter"
+#   member  = "serviceAccount:${google_service_account.workloadid_sa.email}"
+# }
 
 resource "null_resource" "cluster-trust" {
   depends_on = [
-      module.asm-anthos-db,
-      module.asm-anthos
+      module.asm-anthos-db.asm_wait,
+      module.asm-anthos.asm_wait
     ]
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
