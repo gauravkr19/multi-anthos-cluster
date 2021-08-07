@@ -369,15 +369,29 @@ resource "google_service_account" "workloadid_sa" {
   display_name = " Service Account for Workload Id"
 }
 
-# Intercluster trust & ACM installation
-resource "null_resource" "cluster-trust" {
+resource "time_sleep" "wait_30s" {
   depends_on = [
-      module.asm-anthos-db.asm_wait,
-      module.asm-anthos.asm_wait
+    module.asm-anthos-db.asm_wait,
+    module.asm-anthos.asm_wait
     ]
+  create_duration = "30s"
+}
+
+# Intercluster trust & ACM installation
+resource "null_resource" "cluster-trust" { 
+#   triggers = {
+#     name = module.asm-anthos-db.cluster_name
+#   }
+  depends_on = [
+    module.asm-anthos-db.asm_wait,
+    module.asm-anthos.asm_wait,
+    time_sleep.wait_30s
+    ]
+
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
+    gcloud alpha container hub config-management enable
     gsutil cp gs://config-management-release/released/latest/config-management-operator.yaml config-management-operator.yaml
     gcloud container clusters get-credentials ${var.clusname} --zone=${var.region}
     istioctl x create-remote-secret --context=$${CLUSTER_2_CTX} --name=$${CTX_2} | kubectl apply -f -    
@@ -393,6 +407,19 @@ resource "null_resource" "cluster-trust" {
       CLUSTER_1_CTX       = "gke_${var.project_id}_${var.region}_${var.clusname}"
       CLUSTER_2_CTX       = "gke_${var.project_id}_${var.region}_${var.clusnamedb}"
     }
+  }
+
+  provisioner "local-exec" {
+   when = destroy
+   command = "./destroy.sh"
+   working_dir = path.module
+
+#    gcloud container clusters get-credentials ${var.clusname} --zone=${var.region}
+#    kubectl delete ns config-management-monitoring config-management-system resource-group-system
+#    gcloud container clusters get-credentials ${var.clusnamedb} --zone=${var.region}
+#    kubectl delete ns config-management-monitoring config-management-system resource-group-system
+#    echo add istio remote-secret too
+#    EOF
   }
 }
 
