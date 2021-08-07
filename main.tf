@@ -379,9 +379,9 @@ resource "null_resource" "cluster-trust" {
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
     gcloud container clusters get-credentials ${var.clusname} --zone=${var.region}
-    istioctl x create-remote-secret --context=$${CTX_2} --name=$${CTX_2} | kubectl apply -f -
+    istioctl x create-remote-secret --context=$${CLUSTER_2_CTX} --name=$${CTX_2} | kubectl apply -f -
     gcloud container clusters get-credentials ${var.clusnamedb} --zone=${var.region}
-    istioctl x create-remote-secret --context=$${CTX_1} --name=$${CTX_1} | kubectl apply -f -
+    istioctl x create-remote-secret --context=$${CLUSTER_1_CTX} --name=$${CTX_1} | kubectl apply -f -
     EOF
     environment = {
       CTX_1               = var.clusname
