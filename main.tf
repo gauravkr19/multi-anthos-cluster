@@ -76,6 +76,7 @@ data "google_project" "anthos" {
   project_id = var.project_id
 }
 
+# SA and access for Cluster operations
 resource "google_service_account" "service_account" {
   project      = var.project_id
   account_id   = "tf-sa-${var.name}"
@@ -106,9 +107,7 @@ resource "google_project_iam_member" "cluster_iam_artifactregistryreader" {
   member  = "serviceAccount:${google_service_account.service_account.email}"
 }
 
-/*****************************************
-  Apps GKE Cluster
- *****************************************/
+# GKE cluster for hosting Application
 module "anthos-gke" {
   source                   = "terraform-google-modules/kubernetes-engine/google//modules/beta-public-cluster/"
   version                  = "13.0.0"
@@ -194,6 +193,7 @@ module "anthos-gke-db" {
   ]
 }
 
+# Creating the istio namespaces manually as asm module sometimes errors out.
 module "kubectl-ns" {
   source = "terraform-google-modules/gcloud/google//modules/kubectl-wrapper"
 
@@ -251,7 +251,45 @@ resource "local_file" "cred_asm_db" {
   filename = "${path.module}/asm-cred.json"
 }
 
-###  To deploy ASM 
+resource "time_sleep" "wait_20s" {
+  depends_on = [module.anthos-gke]
+  create_duration = "20s"
+}
+
+# Register both the Clusters to Hub
+resource "google_gke_hub_membership" "membership" {
+  depends_on    = [
+    time_sleep.wait_20s,
+    module.anthos-gke
+    ]
+  membership_id = "anthos-gke-app"
+  project       = var.project_id
+  endpoint {
+    gke_cluster {
+      resource_link = "//container.googleapis.com/projects/${var.project_id}/locations/${var.region}/clusters/${var.clusname}"
+    }
+  }
+  description = "Anthos Cluster Hub Registration"
+  provider = google-beta
+}
+
+resource "google_gke_hub_membership" "membership-db" {
+  depends_on    = [
+    time_sleep.wait_20s-db,
+    module.anthos-gke-db
+    ]
+  membership_id = "anthos-gke-db"
+  project       = var.project_id
+  endpoint {
+    gke_cluster {
+      resource_link = "//container.googleapis.com/projects/${var.project_id}/locations/${var.region}/clusters/${var.clusnamedb}"
+    }
+  }
+  description = "Anthos Cluster Hub Registration for DB Cluster"
+  provider = google-beta
+}
+
+###  To deploy ASM on both the Clusters
 module "asm-anthos" {
   source           = "terraform-google-modules/kubernetes-engine/google//modules/asm"
   version          = "15.0.2"
@@ -273,27 +311,6 @@ module "asm-anthos" {
   options               = ["envoy-access-log,egressgateways"]
   skip_validation       = true
   outdir                = "./${module.anthos-gke.name}-outdir-${var.asm_version}"
-}
-
-resource "time_sleep" "wait_20s" {
-  depends_on = [module.anthos-gke]
-  create_duration = "20s"
-}
-
-resource "google_gke_hub_membership" "membership" {
-  depends_on    = [
-    time_sleep.wait_20s,
-    module.anthos-gke
-    ]
-  membership_id = "anthos-gke"
-  project       = var.project_id
-  endpoint {
-    gke_cluster {
-      resource_link = "//container.googleapis.com/projects/${var.project_id}/locations/${var.region}/clusters/${var.clusname}"
-    }
-  }
-  description = "Anthos Cluster Hub Registration"
-  provider = google-beta
 }
 
 module "asm-anthos-db" {
@@ -324,22 +341,7 @@ resource "time_sleep" "wait_20s-db" {
   create_duration = "20s"
 }
 
-resource "google_gke_hub_membership" "membership-db" {
-  depends_on    = [
-    time_sleep.wait_20s-db,
-    module.anthos-gke-db
-    ]
-  membership_id = "anthos-gke-db"
-  project       = var.project_id
-  endpoint {
-    gke_cluster {
-      resource_link = "//container.googleapis.com/projects/${var.project_id}/locations/${var.region}/clusters/${var.clusnamedb}"
-    }
-  }
-  description = "Anthos Cluster Hub Registration for DB Cluster"
-  provider = google-beta
-}
-
+# Firewall rules for cross-cluster pod traffic
 resource "google_compute_firewall" "intercluster" {
   name    = "cluster-firewall"
   network = google_compute_network.vpc.name
@@ -350,6 +352,7 @@ resource "google_compute_firewall" "intercluster" {
   target_tags = ["gke-${var.clusname}", "gke-${var.clusnamedb}"]
 }
 
+# Workload identity for Tekton and BoA apps
 module "workload_identity" {
   source              = "terraform-google-modules/kubernetes-engine/google//modules/workload-identity"
   version             = "16.0.1"
@@ -357,26 +360,16 @@ module "workload_identity" {
   name                = google_service_account.workloadid_sa.account_id
   namespace           = "default"
   use_existing_gcp_sa = true
-  roles               = ["roles/cloudtrace.agent", "roles/monitoring.metricWriter"]
+  roles               = ["roles/cloudtrace.agent", "roles/monitoring.metricWriter", "roles/storage.admin", "roles/container.developer"]
 }
 
 resource "google_service_account" "workloadid_sa" {
   project      = var.project_id
-  account_id   = "boa-gsa"
+  account_id   = "boa-gsa-wi"
   display_name = " Service Account for Workload Id"
 }
 
-# resource "google_project_iam_member" "gsa-binding1" {
-#   project = data.google_client_config.anthos.project
-#   role    = "roles/cloudtrace.agent"
-#   member  = "serviceAccount:${google_service_account.workloadid_sa.email}"
-# }
-# resource "google_project_iam_member" "gsa-binding2" {
-#   project = data.google_client_config.anthos.project
-#   role    = "roles/monitoring.metricWriter"
-#   member  = "serviceAccount:${google_service_account.workloadid_sa.email}"
-# }
-
+# Intercluster trust
 resource "null_resource" "cluster-trust" {
   depends_on = [
       module.asm-anthos-db.asm_wait,
@@ -398,14 +391,6 @@ resource "null_resource" "cluster-trust" {
     }
   }
 }
-
-# resource "kubernetes_service_account" "preexisting" {
-#   metadata {
-#     name                = "boa-ksa"
-#     namespace           = "prod"
-#     use_existing_k8s_sa = true
-#   }
-# }
 
 # resource "google_gke_hub_feature" "feature-apps" {
 #   name = "configmanagement"

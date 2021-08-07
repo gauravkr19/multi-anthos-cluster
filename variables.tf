@@ -66,7 +66,7 @@ variable "ip_range_services_db" {
 }
 
 variable clusname {
-  default     = "anthos-gke"
+  default     = "anthos-gke-app"
   description = "GKE cluster name"
 }
 
