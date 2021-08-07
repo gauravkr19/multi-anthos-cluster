@@ -369,7 +369,7 @@ resource "google_service_account" "workloadid_sa" {
   display_name = " Service Account for Workload Id"
 }
 
-# Intercluster trust
+# Intercluster trust & ACM installation
 resource "null_resource" "cluster-trust" {
   depends_on = [
       module.asm-anthos-db.asm_wait,
@@ -378,10 +378,14 @@ resource "null_resource" "cluster-trust" {
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
     command = <<-EOF
+    gsutil cp gs://config-management-release/released/latest/config-management-operator.yaml config-management-operator.yaml
     gcloud container clusters get-credentials ${var.clusname} --zone=${var.region}
-    istioctl x create-remote-secret --context=$${CLUSTER_2_CTX} --name=$${CTX_2} | kubectl apply -f -
+    istioctl x create-remote-secret --context=$${CLUSTER_2_CTX} --name=$${CTX_2} | kubectl apply -f -    
+    kubectl apply -f config-management-operator.yaml
+
     gcloud container clusters get-credentials ${var.clusnamedb} --zone=${var.region}
     istioctl x create-remote-secret --context=$${CLUSTER_1_CTX} --name=$${CTX_1} | kubectl apply -f -
+    kubectl apply -f config-management-operator.yaml
     EOF
     environment = {
       CTX_1               = var.clusname
@@ -392,6 +396,7 @@ resource "null_resource" "cluster-trust" {
   }
 }
 
+############################## ACM Resource
 # resource "google_gke_hub_feature" "feature-apps" {
 #   name = "configmanagement"
 #   location = "global"
