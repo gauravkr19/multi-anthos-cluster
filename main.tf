@@ -379,49 +379,27 @@ resource "time_sleep" "wait_30s" {
 
 # Intercluster trust & ACM installation
 resource "null_resource" "cluster-trust" { 
-#   triggers = {
-#     name = module.asm-anthos-db.cluster_name
-#   }
+  triggers = {
+    project_id = data.google_project.anthos.project_id
+    clusname = var.clusname
+    region = var.region
+    clusnamedb = var.clusnamedb    
+  }
   depends_on = [
     module.asm-anthos-db.asm_wait,
     module.asm-anthos.asm_wait,
     time_sleep.wait_30s
     ]
-
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = <<-EOF
-    gcloud alpha container hub config-management enable
-    gsutil cp gs://config-management-release/released/latest/config-management-operator.yaml config-management-operator.yaml
-    gcloud container clusters get-credentials ${var.clusname} --zone=${var.region}
-    istioctl x create-remote-secret --context=$${CLUSTER_2_CTX} --name=$${CTX_2} | kubectl apply -f -    
-    kubectl apply -f config-management-operator.yaml
-
-    gcloud container clusters get-credentials ${var.clusnamedb} --zone=${var.region}
-    istioctl x create-remote-secret --context=$${CLUSTER_1_CTX} --name=$${CTX_1} | kubectl apply -f -
-    kubectl apply -f config-management-operator.yaml
-    EOF
-    environment = {
-      CTX_1               = var.clusname
-      CTX_2               = var.clusnamedb
-      CLUSTER_1_CTX       = "gke_${var.project_id}_${var.region}_${var.clusname}"
-      CLUSTER_2_CTX       = "gke_${var.project_id}_${var.region}_${var.clusnamedb}"
-    }
+    command = "${path.module}/acm-trust.sh create ${var.clusname} ${var.region} ${var.clusnamedb} ${var.project_id}"  
   }
-
   provisioner "local-exec" {
-   when = destroy
-   command = "./destroy.sh"
-   working_dir = path.module
-
-#    gcloud container clusters get-credentials ${var.clusname} --zone=${var.region}
-#    kubectl delete ns config-management-monitoring config-management-system resource-group-system
-#    gcloud container clusters get-credentials ${var.clusnamedb} --zone=${var.region}
-#    kubectl delete ns config-management-monitoring config-management-system resource-group-system
-#    echo add istio remote-secret too
-#    EOF
+    when = destroy
+    command = "${path.module}/acm-trust.sh delete \"${self.triggers.clusname}\" \"${self.triggers.region}\" \"${self.triggers.clusnamedb}\" \"${self.triggers.project_id}\" "  
   }
 }
+
 
 ############################## ACM Resource
 # resource "google_gke_hub_feature" "feature-apps" {
