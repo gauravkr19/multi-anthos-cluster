@@ -107,6 +107,12 @@ resource "google_project_iam_member" "cluster_iam_artifactregistryreader" {
   member  = "serviceAccount:${google_service_account.service_account.email}"
 }
 
+resource "google_project_iam_member" "cluster_iam_storageviewer" {
+  project = var.project_id
+  role    = "roles/storage.objectViewer"
+  member  = "serviceAccount:${google_service_account.service_account.email}"
+}
+
 # GKE cluster for hosting Application
 module "anthos-gke" {
   source                   = "terraform-google-modules/kubernetes-engine/google//modules/beta-public-cluster/"
