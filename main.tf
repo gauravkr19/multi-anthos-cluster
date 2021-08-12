@@ -360,11 +360,15 @@ resource "google_compute_firewall" "intercluster" {
 
 # Workload identity for Tekton and BoA apps
 module "workload_identity" {
+  depends_on = [
+    module.kubectl-ns,
+    module.kubectl-ns-db
+  ]
   source              = "terraform-google-modules/kubernetes-engine/google//modules/workload-identity"
   version             = "16.0.1"
   project_id          = data.google_client_config.anthos.project
   name                = google_service_account.workloadid_sa.account_id
-  namespace           = "default"
+  namespace           = "demo"
   use_existing_gcp_sa = true
   roles               = ["roles/cloudtrace.agent", "roles/monitoring.metricWriter", "roles/storage.admin", "roles/container.developer"]
 }
