@@ -1,6 +1,6 @@
-terraform {
-  backend "gcs" {
-    bucket = "bcm-pcidss-devops-gaurav-tfstate"
-    #prefix = "env/dev"
-  }
-}
+# terraform {
+#   backend "gcs" {
+#     bucket = "playground-s-11-e245364b"
+#     #prefix = "env/dev"
+#   }
+# }
