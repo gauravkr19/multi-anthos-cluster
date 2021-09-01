@@ -14,11 +14,11 @@ create_resources() {
     gsutil cp gs://config-management-release/released/latest/config-management-operator.yaml config-management-operator.yaml
     gcloud container clusters get-credentials "${CLUSNAME_APP}" --zone="${REGION}"; sleep 3s
     istioctl x create-remote-secret --context="${CLUSTER_2_CTX}" --name="${CLUSNAME_DB}" | kubectl apply -f -    
-    kubectl apply -f config-management-operator.yaml
+    #kubectl apply -f config-management-operator.yaml
 
     gcloud container clusters get-credentials "${CLUSNAME_DB}" --zone="${REGION}"; sleep 3s
     istioctl x create-remote-secret --context="${CLUSTER_1_CTX}" --name="${CLUSNAME_APP}" | kubectl apply -f -
-    kubectl apply -f config-management-operator.yaml
+    #kubectl apply -f config-management-operator.yaml
     }
 
 delete_resources() {

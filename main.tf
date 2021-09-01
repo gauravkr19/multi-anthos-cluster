@@ -21,7 +21,9 @@ module "project-services" {
     "anthosconfigmanagement.googleapis.com",
     "gkehub.googleapis.com",
     "monitoring.googleapis.com",
-    "logging.googleapis.com"
+    "logging.googleapis.com",
+    "serviceusage.googleapis.com",
+    "stackdriver.googleapis.com"
   ]
 }
 
@@ -144,9 +146,9 @@ module "anthos-gke" {
       ##node_count         = 2
       ##node_locations     = "us-central1-b,us-central1-c"
       min_count          = 2
-      max_count          = 3
+      max_count          = 2
       preemptible        = true
-      machine_type       = "n1-standard-4"
+      machine_type       = "n1-standard-2"
       disk_size_gb       = 50
       disk_type          = "pd-standard"
       image_type         = "COS"
@@ -187,9 +189,9 @@ module "anthos-gke-db" {
       ##node_count         = 2
       ##node_locations     = "us-central1-b,us-central1-c"
       min_count          = 2
-      max_count          = 3
+      max_count          = 2
       preemptible        = true
-      machine_type       = "n1-standard-4"
+      machine_type       = "n1-standard-2"
       disk_size_gb       = 50
       disk_type          = "pd-standard"
       image_type         = "COS"
@@ -387,7 +389,7 @@ resource "time_sleep" "wait_30s" {
   create_duration = "30s"
 }
 
-# Intercluster trust & ACM installation
+# Intercluster trust & ACM installation \ Not install ACM for Now!
 resource "null_resource" "cluster-trust" { 
   triggers = {
     project_id = data.google_project.anthos.project_id
