@@ -1,7 +1,7 @@
-project_id               = "bcm-pcidss-devops-gaurav"
-tfstate_gcs_backend      = "bcm-pcidss-devops-gaurav-tfstate"
-region                   = "us-east4"
-zones                    = ["us-east4-b"]
+project_id               = "cogent-chess-324806"
+tfstate_gcs_backend      = "cogent-chess-324806-tfstate"
+region                   = "us-central1"
+zones                    = "us-central1-a"
 ip_cidr_subnet_pods      = "172.8.0.0/14"
 ip_cidr_subnet_services  = "10.12.0.0/20"
 subnet_cidr              = "10.8.0.0/14"

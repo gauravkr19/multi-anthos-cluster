@@ -14,7 +14,8 @@ variable "region" {
 
 variable "zones" {
   description = "The GCP zone to deploy gke into"
-  default     = ["us-east4-a"]
+  type        = string
+  default     = "us-east4-a"
 }
 
 variable "anthos_k8s_config" {

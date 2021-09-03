@@ -121,9 +121,9 @@ module "anthos-gke" {
   version                  = "13.0.0"
   project_id               = data.google_client_config.anthos.project
   name                     = var.clusname
-  regional                 = true
+  regional                 = false
   region                   = var.region
-  zones                    = var.zones
+  zones                    = tolist([var.zones])
   network                  = google_compute_network.vpc.name
   subnetwork               = google_compute_subnetwork.subnet.name
   ip_range_pods            = var.ip_range_pods
@@ -146,9 +146,9 @@ module "anthos-gke" {
       ##node_count         = 2
       ##node_locations     = "us-central1-b,us-central1-c"
       min_count          = 2
-      max_count          = 2
+      max_count          = 3
       preemptible        = true
-      machine_type       = "n1-standard-2"
+      machine_type       = "e2-standard-4"
       disk_size_gb       = 50
       disk_type          = "pd-standard"
       image_type         = "COS"
@@ -164,9 +164,9 @@ module "anthos-gke-db" {
   version                  = "13.0.0"
   project_id               = data.google_client_config.anthos.project
   name                     = var.clusnamedb
-  regional                 = true
+  regional                 = false
   region                   = var.region
-  zones                    = var.zones
+  zones                    = tolist([var.zones])
   network                  = google_compute_network.vpc.name
   subnetwork               = google_compute_subnetwork.subnet-db.name
   ip_range_pods            = var.ip_range_pods_db
@@ -189,9 +189,9 @@ module "anthos-gke-db" {
       ##node_count         = 2
       ##node_locations     = "us-central1-b,us-central1-c"
       min_count          = 2
-      max_count          = 2
+      max_count          = 3
       preemptible        = true
-      machine_type       = "n1-standard-2"
+      machine_type       = "e2-standard-4"
       disk_size_gb       = 50
       disk_type          = "pd-standard"
       image_type         = "COS"
@@ -204,10 +204,9 @@ module "anthos-gke-db" {
 # Creating the istio namespaces manually as asm module sometimes errors out.
 module "kubectl-ns" {
   source = "terraform-google-modules/gcloud/google//modules/kubectl-wrapper"
-
   project_id              = var.project_id
   cluster_name            = var.clusname
-  cluster_location        = var.region
+  cluster_location        = var.zones
   kubectl_create_command  = "kubectl apply -f ${path.module}/asm-ns.yaml"
   kubectl_destroy_command = "kubectl delete ns asm-system"
   module_depends_on       = [module.anthos-gke]
@@ -215,10 +214,9 @@ module "kubectl-ns" {
 
 module "kubectl-ns-db" {
   source = "terraform-google-modules/gcloud/google//modules/kubectl-wrapper"
-
   project_id              = var.project_id
   cluster_name            = var.clusnamedb
-  cluster_location        = var.region
+  cluster_location        = var.zones
   kubectl_create_command  = "kubectl apply -f ${path.module}/asm-ns.yaml"
   kubectl_destroy_command = "kubectl delete ns asm-system"
   module_depends_on       = [module.anthos-gke-db]
@@ -274,10 +272,10 @@ resource "google_gke_hub_membership" "membership" {
   project       = var.project_id
   endpoint {
     gke_cluster {
-      resource_link = "//container.googleapis.com/projects/${var.project_id}/locations/${var.region}/clusters/${var.clusname}"
+      resource_link = "//container.googleapis.com/projects/${var.project_id}/locations/${var.zones}/clusters/${var.clusname}"
     }
   }
-  description = "Anthos Cluster Hub Registration"
+  #description = "Anthos Cluster Hub Registration"
   provider = google-beta
 }
 
@@ -290,10 +288,10 @@ resource "google_gke_hub_membership" "membership-db" {
   project       = var.project_id
   endpoint {
     gke_cluster {
-      resource_link = "//container.googleapis.com/projects/${var.project_id}/locations/${var.region}/clusters/${var.clusnamedb}"
+      resource_link = "//container.googleapis.com/projects/${var.project_id}/locations/${var.zones}/clusters/${var.clusnamedb}"
     }
   }
-  description = "Anthos Cluster Hub Registration for DB Cluster"
+  #description = "Anthos Cluster Hub Registration for DB Cluster"
   provider = google-beta
 }
 
@@ -360,11 +358,32 @@ resource "google_compute_firewall" "intercluster" {
   target_tags = ["gke-${var.clusname}", "gke-${var.clusnamedb}"]
 }
 
+# resource "kubernetes_namespace" "demo-app" {
+#   provider = kubernetes.app
+#   metadata {
+#     # annotations = {
+#     #   name = "example-annotation"
+#     # }
+#     name = "demo"
+#   }
+# }
+
+# resource "kubernetes_namespace" "demo-db" {
+#   provider = kubernetes.db
+#   metadata {
+#     # annotations = {
+#     #   name = "example-annotation"
+#     # }
+#     name = "demo"
+#   }
+# }
+
 # Workload identity for Tekton and BoA apps
 module "workload_identity" {
   depends_on = [
+    module.kubectl-ns-db,
     module.kubectl-ns,
-    module.kubectl-ns-db
+    google_service_account.workloadid_sa
   ]
   source              = "terraform-google-modules/kubernetes-engine/google//modules/workload-identity"
   version             = "16.0.1"
@@ -389,12 +408,12 @@ resource "time_sleep" "wait_30s" {
   create_duration = "30s"
 }
 
-# Intercluster trust & ACM installation \ Not install ACM for Now!
+# Intercluster trust & ACM installation 
 resource "null_resource" "cluster-trust" { 
   triggers = {
     project_id = data.google_project.anthos.project_id
-    clusname = var.clusname
-    region = var.region
+    clusname   = var.clusname
+    region     = var.zones
     clusnamedb = var.clusnamedb    
   }
   depends_on = [
@@ -404,7 +423,7 @@ resource "null_resource" "cluster-trust" {
     ]
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = "${path.module}/acm-trust.sh create ${var.clusname} ${var.region} ${var.clusnamedb} ${var.project_id}"  
+    command = "${path.module}/acm-trust.sh create ${var.clusname} ${var.zones} ${var.clusnamedb} ${var.project_id}"  
   }
   provisioner "local-exec" {
     when = destroy

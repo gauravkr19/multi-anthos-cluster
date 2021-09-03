@@ -38,8 +38,8 @@ output "cluster_name" {
 # }
 
 output "zone" {
-  description = "Zone of Jenkins GKE cluster"
-  value       = join(",", var.zones)
+  description = "Zone of GKE cluster"
+  value       =  var.zones            #for converting list to string: join(",", var.zones)
 }
 
 output "project" {

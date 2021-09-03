@@ -1,6 +1,6 @@
 # terraform {
 #   backend "gcs" {
-#     bucket = "playground-s-11-e245364b"
+#     bucket = "cogent-chess-324806"
 #     #prefix = "env/dev"
 #   }
 # }
