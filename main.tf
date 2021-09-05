@@ -358,26 +358,6 @@ resource "google_compute_firewall" "intercluster" {
   target_tags = ["gke-${var.clusname}", "gke-${var.clusnamedb}"]
 }
 
-# resource "kubernetes_namespace" "demo-app" {
-#   provider = kubernetes.app
-#   metadata {
-#     # annotations = {
-#     #   name = "example-annotation"
-#     # }
-#     name = "demo"
-#   }
-# }
-
-# resource "kubernetes_namespace" "demo-db" {
-#   provider = kubernetes.db
-#   metadata {
-#     # annotations = {
-#     #   name = "example-annotation"
-#     # }
-#     name = "demo"
-#   }
-# }
-
 # Workload identity for Tekton and BoA apps
 module "workload_identity" {
   depends_on = [
@@ -396,7 +376,7 @@ module "workload_identity" {
 
 resource "google_service_account" "workloadid_sa" {
   project      = var.project_id
-  account_id   = "boa-gsa-wi"
+  account_id   = "boa-sa-wi"
   display_name = " Service Account for Workload Id"
 }
 

@@ -10,6 +10,7 @@ CLUSTER_1_CTX="gke_${PROJECT_ID}_${REGION}_${CLUSNAME_APP}"
 CLUSTER_2_CTX="gke_${PROJECT_ID}_${REGION}_${CLUSNAME_DB}"
 
 create_resources() {
+  set -e
     gcloud alpha container hub config-management enable
     gsutil cp gs://config-management-release/released/latest/config-management-operator.yaml config-management-operator.yaml
     gcloud container clusters get-credentials "${CLUSNAME_APP}" --zone="${REGION}"; sleep 9s
