@@ -201,6 +201,19 @@ module "anthos-gke-db" {
   ]
 }
 
+resource "null_resource" "add-context" {
+ depends_on = [
+    module.anthos-gke.endpoint,
+    module.anthos-gke-db.endpoint
+   ] 
+ provisioner "local-exec" {   
+   command = <<EOF
+   gcloud container clusters get-credentials ${module.anthos-gke.name} --zone=${var.zones}
+   gcloud container clusters get-credentials ${module.anthos-gke-db.name} --zone=${var.zones}
+  EOF
+  }
+}
+
 # Creating the istio namespaces manually as asm module sometimes errors out.
 module "kubectl-ns" {
   source = "terraform-google-modules/gcloud/google//modules/kubectl-wrapper"
@@ -209,7 +222,7 @@ module "kubectl-ns" {
   cluster_location        = var.zones
   kubectl_create_command  = "kubectl apply -f ${path.module}/asm-ns.yaml"
   kubectl_destroy_command = "kubectl delete ns asm-system"
-  module_depends_on       = [module.anthos-gke]
+  module_depends_on       = [null_resource.add-context]
 }
 
 module "kubectl-ns-db" {
@@ -219,7 +232,7 @@ module "kubectl-ns-db" {
   cluster_location        = var.zones
   kubectl_create_command  = "kubectl apply -f ${path.module}/asm-ns.yaml"
   kubectl_destroy_command = "kubectl delete ns asm-system"
-  module_depends_on       = [module.anthos-gke-db]
+  module_depends_on       = [null_resource.add-context]
 }
 
 # GH Secrets
@@ -361,15 +374,15 @@ resource "google_compute_firewall" "intercluster" {
 # Workload identity for Tekton and BoA apps
 module "workload_identity" {
   depends_on = [
-    module.kubectl-ns-db,
-    module.kubectl-ns,
-    google_service_account.workloadid_sa
+    null_resource.add-context,
   ]
   source              = "terraform-google-modules/kubernetes-engine/google//modules/workload-identity"
-  version             = "16.0.1"
+  version             = "16.1.0"
   project_id          = data.google_client_config.anthos.project
   name                = google_service_account.workloadid_sa.account_id
-  namespace           = "demo"
+  #gcp_sa_name         = google_service_account.workloadid_sa.account_id
+  k8s_sa_name         = "tekton-triggers-example-sa"
+  namespace           = "default"
   use_existing_gcp_sa = true
   roles               = ["roles/cloudtrace.agent", "roles/monitoring.metricWriter", "roles/storage.admin", "roles/container.developer"]
 }
