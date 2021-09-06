@@ -13,6 +13,7 @@ create_resources() {
   set -e
     gcloud alpha container hub config-management enable
     gsutil cp gs://config-management-release/released/latest/config-management-operator.yaml config-management-operator.yaml
+    gcloud container clusters get-credentials "${CLUSNAME_DB}" --zone="${REGION}"; sleep 1s
     gcloud container clusters get-credentials "${CLUSNAME_APP}" --zone="${REGION}"; sleep 9s
     istioctl x create-remote-secret --context="${CLUSTER_2_CTX}" --name="${CLUSNAME_DB}" | kubectl apply -f -    
     kubectl apply -f config-management-operator.yaml
