@@ -215,12 +215,12 @@ resource "null_resource" "add-context" {
 }
 
 # Creating the istio namespaces manually as asm module sometimes errors out.
-module "kubectl-ns" {
+module "kubectl-ns-app" {
   source = "terraform-google-modules/gcloud/google//modules/kubectl-wrapper"
   project_id              = var.project_id
   cluster_name            = var.clusname
   cluster_location        = var.zones
-  kubectl_create_command  = "kubectl apply -f ${path.module}/asm-ns.yaml"
+  kubectl_create_command  = "kubectl apply -f ${path.module}/k8s-objects-app.yaml"
   kubectl_destroy_command = "kubectl delete ns asm-system"
   module_depends_on       = [null_resource.add-context]
 }
@@ -230,7 +230,7 @@ module "kubectl-ns-db" {
   project_id              = var.project_id
   cluster_name            = var.clusnamedb
   cluster_location        = var.zones
-  kubectl_create_command  = "kubectl apply -f ${path.module}/asm-ns.yaml"
+  kubectl_create_command  = "kubectl apply -f ${path.module}/k8s-objects-db.yaml"
   kubectl_destroy_command = "kubectl delete ns asm-system"
   module_depends_on       = [null_resource.add-context]
 }
@@ -375,14 +375,14 @@ resource "google_compute_firewall" "intercluster" {
 module "workload_identity" {
   depends_on = [
     null_resource.add-context,
+    time_sleep.wait_20s-wi
   ]
   source              = "terraform-google-modules/kubernetes-engine/google//modules/workload-identity"
   version             = "16.1.0"
   project_id          = data.google_client_config.anthos.project
   name                = google_service_account.workloadid_sa.account_id
-  #gcp_sa_name         = google_service_account.workloadid_sa.account_id
   k8s_sa_name         = "tekton-triggers-example-sa"
-  namespace           = "default"
+  namespace           = "tekton"
   use_existing_gcp_sa = true
   roles               = ["roles/cloudtrace.agent", "roles/monitoring.metricWriter", "roles/storage.admin", "roles/container.developer"]
 }
@@ -423,6 +423,31 @@ resource "null_resource" "cluster-trust" {
     command = "${path.module}/acm-trust.sh delete \"${self.triggers.clusname}\" \"${self.triggers.region}\" \"${self.triggers.clusnamedb}\" \"${self.triggers.project_id}\" "  
   }
 }
+
+resource "time_sleep" "wait_20s-wi" {
+  depends_on = [null_resource.cluster-trust]
+  create_duration = "20s"
+}
+
+# Helm deployment to configure tekton
+# data "local_file" "helm_chart_values" {
+#   filename = "${path.module}/values.yaml"
+# }
+
+resource "helm_release" "boa-tkn" {
+  provider   = helm.db
+  name       = "boa"
+  namespace  = "tekton"
+  #repository = "https://charts.jenkins.io"
+  #values     = [data.local_file.helm_chart_values.content]  
+  chart      = "../helm/boa1"
+  timeout    = 300
+  depends_on = [
+    module.kubectl-ns-db,
+    module.kubectl-ns-app
+  ]
+}
+
 
 
 ############################## ACM Resource

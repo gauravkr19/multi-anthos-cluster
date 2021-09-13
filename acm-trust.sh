@@ -20,6 +20,7 @@ create_resources() {
 
     gcloud container clusters get-credentials "${CLUSNAME_DB}" --zone="${REGION}"; sleep 9s
     istioctl x create-remote-secret --context="${CLUSTER_1_CTX}" --name="${CLUSNAME_APP}" | kubectl apply -f -
+    kubectl create clusterrolebinding cluster-admin-binding  --clusterrole=cluster-admin  --user=$(gcloud config get-value core/account)
     kubectl apply -f config-management-operator.yaml
     sleep 9s
     }

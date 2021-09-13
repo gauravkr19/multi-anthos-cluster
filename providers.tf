@@ -39,21 +39,40 @@ provider "kubernetes" {
 /*****************************************
   Helm provider configuration
  *****************************************/
-# module "gke_auth" {
-#   source  = "terraform-google-modules/kubernetes-engine/google//modules/auth"
-#   #version = "~> 9.1"
+module "gke_auth_app" {
+  source  = "terraform-google-modules/kubernetes-engine/google//modules/auth"
+  version = "16.1.0"
 
-#   project_id   = data.google_client_config.anthos.project
-#   cluster_name = module.anthos-gke.name
-#   location     = module.anthos-gke.location
-# }
+  project_id   = data.google_client_config.anthos.project
+  cluster_name = module.anthos-gke.name
+  location     = module.anthos-gke.location
+}
 
-# provider "helm" {
-#   kubernetes {
-#     //load_config_file       = false
-#     config_path            = "~/.kube/config"
-#     cluster_ca_certificate = module.gke_auth.cluster_ca_certificate
-#     host                   = module.gke_auth.host
-#     token                  = module.gke_auth.token
-#   }
-# }
+module "gke_auth_db" {
+  source  = "terraform-google-modules/kubernetes-engine/google//modules/auth"
+  version = "16.1.0"
+
+  project_id   = data.google_client_config.anthos.project
+  cluster_name = module.anthos-gke-db.name
+  location     = module.anthos-gke-db.location
+}
+
+provider "helm" {
+  alias = "app"
+  kubernetes {
+    #config_path            = "~/.kube/config"
+    cluster_ca_certificate = module.gke_auth_app.cluster_ca_certificate
+    host                   = module.gke_auth_app.host
+    token                  = module.gke_auth_app.token
+  }
+}
+
+provider "helm" {
+  alias = "db"
+  kubernetes {
+    #config_path            = "~/.kube/config"
+    cluster_ca_certificate = module.gke_auth_db.cluster_ca_certificate
+    host                   = module.gke_auth_db.host
+    token                  = module.gke_auth_db.token
+  }
+}
