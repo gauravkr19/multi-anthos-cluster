@@ -375,7 +375,7 @@ resource "google_compute_firewall" "intercluster" {
 module "workload_identity" {
   depends_on = [
     null_resource.add-context,
-    time_sleep.wait_20s-wi
+    time_sleep.wait_10s-wi
   ]
   source              = "terraform-google-modules/kubernetes-engine/google//modules/workload-identity"
   version             = "16.1.0"
@@ -383,22 +383,23 @@ module "workload_identity" {
   name                = google_service_account.workloadid_sa.account_id
   k8s_sa_name         = "tekton-triggers-example-sa"
   namespace           = "tekton"
+  annotate_k8s_sa     = false
+  use_existing_k8s_sa = true
   use_existing_gcp_sa = true
   roles               = ["roles/cloudtrace.agent", "roles/monitoring.metricWriter", "roles/storage.admin", "roles/container.developer"]
 }
-
 resource "google_service_account" "workloadid_sa" {
   project      = var.project_id
   account_id   = "boa-sa-wi"
   display_name = " Service Account for Workload Id"
 }
 
-resource "time_sleep" "wait_30s" {
+resource "time_sleep" "wait_10s" {
   depends_on = [
     module.asm-anthos-db.asm_wait,
     module.asm-anthos.asm_wait
     ]
-  create_duration = "30s"
+  create_duration = "10s"
 }
 
 # Intercluster trust & ACM installation 
@@ -412,7 +413,7 @@ resource "null_resource" "cluster-trust" {
   depends_on = [
     module.asm-anthos-db.asm_wait,
     module.asm-anthos.asm_wait,
-    time_sleep.wait_30s
+    time_sleep.wait_10s
     ]
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
@@ -424,27 +425,35 @@ resource "null_resource" "cluster-trust" {
   }
 }
 
-resource "time_sleep" "wait_20s-wi" {
+resource "time_sleep" "wait_10s-wi" {
   depends_on = [null_resource.cluster-trust]
-  create_duration = "20s"
+  create_duration = "10s"
 }
 
 # Helm deployment to configure tekton
-# data "local_file" "helm_chart_values" {
-#   filename = "${path.module}/values.yaml"
-# }
-
-resource "helm_release" "boa-tkn" {
+resource "helm_release" "boa-tkn-db" {
   provider   = helm.db
   name       = "boa"
   namespace  = "tekton"
-  #repository = "https://charts.jenkins.io"
-  #values     = [data.local_file.helm_chart_values.content]  
-  chart      = "../helm/boa1"
+  # repository = "https://charts.jenkins.io"
+  # values     = [data.local_file.helm_chart_values.content]  
+  chart      = "../helm/db-cluster-chart"
   timeout    = 300
   depends_on = [
     module.kubectl-ns-db,
-    module.kubectl-ns-app
+    module.kubectl-ns-app,
+  ]
+}
+
+resource "helm_release" "boa-tkn-app" {
+  provider   = helm.app
+  name       = "app-cluster-chart"
+  namespace  = "tekton"
+  chart      = "../helm/app-cluster-chart"
+  timeout    = 300
+  depends_on = [
+    module.kubectl-ns-db,
+    module.kubectl-ns-app,
   ]
 }
 
