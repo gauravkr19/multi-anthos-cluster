@@ -35,16 +35,16 @@ create_resources() {
 
 delete_resources() {
     gcloud container clusters get-credentials "${CLUSNAME_APP}" --zone="${REGION}"
-    gcloud alpha container hub config-management disable
-    kubectl delete ns config-management-monitoring config-management-system
-    kubectl delete secret istio-remote-secret-"${CLUSNAME_DB}"  -n istio-system
+    gcloud alpha container hub config-management disable || true
+    kubectl delete ns config-management-monitoring config-management-system || true
+    kubectl delete secret istio-remote-secret-"${CLUSNAME_DB}"  -n istio-system || true
 
     gcloud container clusters get-credentials "${CLUSNAME_DB}" --zone="${REGION}"
-    kubectl delete ns config-management-monitoring config-management-system
-    kubectl delete secret istio-remote-secret-"${CLUSNAME_APP}" -n istio-system
-    echo "🔐  Reemove binding between GSA and KSA..."
+    kubectl delete ns config-management-monitoring config-management-system || true
+    kubectl delete secret istio-remote-secret-"${CLUSNAME_APP}" -n istio-system || true
+    echo "🔐  Remove binding between GSA and KSA..."
     gcloud iam service-accounts remove-iam-policy-binding --role roles/iam.workloadIdentityUser \
-    --member "serviceAccount:${PROJECT_ID}.svc.id.goog[$NAMESPACE/$KSA_NAME]" $GSA_NAME@$PROJECT_ID.iam.gserviceaccount.com
+    --member "serviceAccount:${PROJECT_ID}.svc.id.goog[$NAMESPACE/$KSA_NAME]" $GSA_NAME@$PROJECT_ID.iam.gserviceaccount.com || true
     }
 
 case $opt in

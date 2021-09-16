@@ -409,7 +409,10 @@ resource "null_resource" "cluster-trust" {
     project_id = data.google_project.anthos.project_id
     clusname   = var.clusname
     region     = var.zones
-    clusnamedb = var.clusnamedb    
+    clusnamedb = var.clusnamedb
+    namespace = var.wi_namespace
+    ksa       = var.wi_ksa
+    gsa       = var.wi_gsa
   }
   depends_on = [
     module.asm-anthos-db.asm_wait,
@@ -422,7 +425,7 @@ resource "null_resource" "cluster-trust" {
   }
   provisioner "local-exec" {
     when = destroy
-    command = "${path.module}/acm-trust.sh delete \"${self.triggers.clusname}\" \"${self.triggers.region}\" \"${self.triggers.clusnamedb}\" \"${self.triggers.project_id}\" "  
+    command = "${path.module}/acm-trust.sh delete \"${self.triggers.clusname}\" \"${self.triggers.region}\" \"${self.triggers.clusnamedb}\" \"${self.triggers.project_id}\" \"${self.triggers.namespace}\" \"${self.triggers.ksa}\" \"${self.triggers.gsa}\" "  
   }
 }
 
