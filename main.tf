@@ -371,7 +371,8 @@ resource "google_compute_firewall" "intercluster" {
   target_tags = ["gke-${var.clusname}", "gke-${var.clusnamedb}"]
 }
 
-# Workload identity for Tekton and BoA apps
+# this module will create GSA binding and provide the required Role permissions to GSA
+# KSA side function(SA creation + annotation) performed by helm
 module "workload_identity" {
   depends_on = [
     null_resource.add-context,
@@ -381,7 +382,7 @@ module "workload_identity" {
   version             = "16.1.0"
   project_id          = data.google_client_config.anthos.project
   name                = google_service_account.workloadid_sa.account_id
-  k8s_sa_name         = "tekton-triggers-example-sa"
+  k8s_sa_name         = var.wi_ksa
   namespace           = "tekton"
   annotate_k8s_sa     = false
   use_existing_k8s_sa = true
@@ -390,7 +391,7 @@ module "workload_identity" {
 }
 resource "google_service_account" "workloadid_sa" {
   project      = var.project_id
-  account_id   = "boa-sa-wi"
+  account_id   = var.wi_gsa
   display_name = " Service Account for Workload Id"
 }
 
@@ -417,7 +418,7 @@ resource "null_resource" "cluster-trust" {
     ]
   provisioner "local-exec" {
     interpreter = ["/bin/bash", "-c"]
-    command = "${path.module}/acm-trust.sh create ${var.clusname} ${var.zones} ${var.clusnamedb} ${var.project_id}"  
+    command = "${path.module}/acm-trust.sh create ${var.clusname} ${var.zones} ${var.clusnamedb} ${var.project_id} ${var.wi_namespace} ${var.wi_ksa} ${var.wi_gsa}"  
   }
   provisioner "local-exec" {
     when = destroy
@@ -433,7 +434,7 @@ resource "time_sleep" "wait_10s-wi" {
 # Helm deployment to configure tekton
 resource "helm_release" "boa-tkn-db" {
   provider   = helm.db
-  name       = "boa"
+  name       = "db-chart"
   namespace  = "tekton"
   # repository = "https://charts.jenkins.io"
   # values     = [data.local_file.helm_chart_values.content]  
@@ -442,6 +443,7 @@ resource "helm_release" "boa-tkn-db" {
   depends_on = [
     module.kubectl-ns-db,
     module.kubectl-ns-app,
+    null_resource.cluster-trust
   ]
 }
 
@@ -454,6 +456,7 @@ resource "helm_release" "boa-tkn-app" {
   depends_on = [
     module.kubectl-ns-db,
     module.kubectl-ns-app,
+    null_resource.cluster-trust
   ]
 }
 

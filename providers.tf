@@ -60,7 +60,7 @@ module "gke_auth_db" {
 provider "helm" {
   alias = "app"
   kubernetes {
-    #config_path            = "~/.kube/config"
+    config_path            = "~/.kube/config"
     cluster_ca_certificate = module.gke_auth_app.cluster_ca_certificate
     host                   = module.gke_auth_app.host
     token                  = module.gke_auth_app.token
@@ -70,7 +70,7 @@ provider "helm" {
 provider "helm" {
   alias = "db"
   kubernetes {
-    #config_path            = "~/.kube/config"
+    config_path            = "~/.kube/config"
     cluster_ca_certificate = module.gke_auth_db.cluster_ca_certificate
     host                   = module.gke_auth_db.host
     token                  = module.gke_auth_db.token

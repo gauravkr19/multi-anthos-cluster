@@ -134,7 +134,19 @@ variable "subnet_cidr_db" {
 }
 
 variable "clusnamedb" {
-  type        = string
   default     = "anthos-gke-db"
-  description = "description"
+  description = "Cluster hosting database"
+}
+
+variable "wi_ksa" {
+  default     = "tekton-triggers-example-sa"
+  description = "KSA mapped to GSA for WI"
+}
+variable "wi_gsa" {
+  default     = "boa-sa-wi"
+  description = "GSA mapped to KSA for WI"
+}
+variable "wi_namespace" {
+  default     = "default"
+  description = "Namespace hosting the application"
 }

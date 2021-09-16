@@ -1,3 +1,6 @@
+#
+#
+
 #!/bin/bash
 
 opt=$1
@@ -5,6 +8,9 @@ CLUSNAME_APP=$2
 REGION=$3
 CLUSNAME_DB=$4
 PROJECT_ID=$5
+NAMESPACE=$6
+KSA_NAME=$7
+GSA_NAME=$8
 
 CLUSTER_1_CTX="gke_${PROJECT_ID}_${REGION}_${CLUSNAME_APP}"
 CLUSTER_2_CTX="gke_${PROJECT_ID}_${REGION}_${CLUSNAME_DB}"
@@ -20,19 +26,25 @@ create_resources() {
 
     gcloud container clusters get-credentials "${CLUSNAME_DB}" --zone="${REGION}"; sleep 9s
     istioctl x create-remote-secret --context="${CLUSTER_1_CTX}" --name="${CLUSNAME_APP}" | kubectl apply -f -
-    kubectl create clusterrolebinding cluster-admin-binding  --clusterrole=cluster-admin  --user=$(gcloud config get-value core/account)
+    #kubectl create clusterrolebinding cluster-admin-binding  --clusterrole=cluster-admin  --user=$(gcloud config get-value core/account)
     kubectl apply -f config-management-operator.yaml
-    sleep 9s
+    echo "🔐  Bind / Map service accounts to connect your GSA and KSA..."
+    gcloud iam service-accounts add-iam-policy-binding --role roles/iam.workloadIdentityUser \
+    --member "serviceAccount:${PROJECT_ID}.svc.id.goog[$NAMESPACE/$KSA_NAME]" $GSA_NAME@$PROJECT_ID.iam.gserviceaccount.com
     }
 
 delete_resources() {
     gcloud container clusters get-credentials "${CLUSNAME_APP}" --zone="${REGION}"
+    gcloud alpha container hub config-management disable
     kubectl delete ns config-management-monitoring config-management-system
     kubectl delete secret istio-remote-secret-"${CLUSNAME_DB}"  -n istio-system
 
     gcloud container clusters get-credentials "${CLUSNAME_DB}" --zone="${REGION}"
     kubectl delete ns config-management-monitoring config-management-system
     kubectl delete secret istio-remote-secret-"${CLUSNAME_APP}" -n istio-system
+    echo "🔐  Reemove binding between GSA and KSA..."
+    gcloud iam service-accounts remove-iam-policy-binding --role roles/iam.workloadIdentityUser \
+    --member "serviceAccount:${PROJECT_ID}.svc.id.goog[$NAMESPACE/$KSA_NAME]" $GSA_NAME@$PROJECT_ID.iam.gserviceaccount.com
     }
 
 case $opt in
